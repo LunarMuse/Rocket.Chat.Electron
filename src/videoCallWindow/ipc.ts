@@ -18,6 +18,7 @@ import {
 
 import { packageJsonInformation } from '../app/main/app';
 import { handle } from '../ipc/main';
+import { isProtocolAllowed } from '../navigation/main';
 import { select, dispatchLocal } from '../store';
 import { VIDEO_CALL_WINDOW_STATE_CHANGED } from '../ui/actions';
 import { debounce } from '../ui/main/debounce';
@@ -124,6 +125,24 @@ export const startVideoCallWindowHandler = (): void => {
         show: false,
       });
 
+      // Block navigation to smb:// protocol
+      videoCallWindow.webContents.on(
+        'will-navigate',
+        (event: Event, url: string) => {
+          if (url.toLowerCase().startsWith('smb://')) {
+            event.preventDefault();
+          }
+        }
+      );
+      videoCallWindow.webContents.setWindowOpenHandler(
+        ({ url }: { url: string }) => {
+          if (url.toLowerCase().startsWith('smb://')) {
+            return { action: 'deny' };
+          }
+          return { action: 'allow' };
+        }
+      );
+
       // Only track window state changes if persistence is enabled
       if (state.isVideoCallWindowPersistenceEnabled) {
         const fetchAndDispatchWindowState = debounce(async () => {
@@ -169,8 +188,71 @@ export const startVideoCallWindowHandler = (): void => {
         _event: Event,
         webContents: WebContents
       ): void => {
+        // Set up window open handler for external protocols (like zoommtg://)
+        webContents.setWindowOpenHandler(
+          ({ url, disposition }: { url: string; disposition: any }) => {
+            console.log('Video call window open handler:', {
+              url,
+              disposition,
+            });
+
+            // For external protocols and new windows, open them externally
+            if (
+              disposition === 'foreground-tab' ||
+              disposition === 'background-tab' ||
+              disposition === 'new-window'
+            ) {
+              isProtocolAllowed(url).then((allowed) => {
+                if (allowed) {
+                  openExternal(url);
+                }
+              });
+              return { action: 'deny' };
+            }
+
+            // Allow other window opens to proceed normally
+            return { action: 'allow' };
+          }
+        );
+
+        // Handle navigation to external protocols in video call windows
+        webContents.on('will-navigate', (event: any, url: string) => {
+          console.log('Video call window will-navigate:', url);
+
+          try {
+            const parsedUrl = new URL(url);
+
+            // Check if this is an external protocol (not http/https)
+            if (
+              !['http:', 'https:', 'file:', 'data:', 'about:'].includes(
+                parsedUrl.protocol
+              )
+            ) {
+              console.log(
+                'External protocol detected in video call window:',
+                parsedUrl.protocol
+              );
+              event.preventDefault();
+
+              isProtocolAllowed(url).then((allowed) => {
+                if (allowed) {
+                  openExternal(url);
+                }
+              });
+            }
+          } catch (e) {
+            // If URL parsing fails, let the default handling proceed
+            console.warn('Failed to parse URL in video call window:', url, e);
+          }
+        });
+
         webContents.session.setPermissionRequestHandler(
-          async (_webContents, permission, callback, details) => {
+          async (
+            _webContents: any,
+            permission: any,
+            callback: any,
+            details: any
+          ) => {
             console.log(
               'Video call window permission request',
               permission,
@@ -193,31 +275,32 @@ export const startVideoCallWindowHandler = (): void => {
                   break;
                 }
 
-                let microphoneAllowed = true;
-                let cameraAllowed = true;
+                // For non-macOS platforms (including Linux), check system permissions on Windows only
+                if (process.platform === 'win32') {
+                  let microphoneAllowed = true;
+                  let cameraAllowed = true;
 
-                if (mediaTypes.includes('audio')) {
-                  const micStatus =
-                    systemPreferences.getMediaAccessStatus('microphone');
-                  microphoneAllowed = micStatus === 'granted';
-                }
+                  if (mediaTypes.includes('audio')) {
+                    const micStatus =
+                      systemPreferences.getMediaAccessStatus('microphone');
+                    microphoneAllowed = micStatus === 'granted';
+                  }
 
-                if (mediaTypes.includes('video')) {
-                  const camStatus =
-                    systemPreferences.getMediaAccessStatus('camera');
-                  cameraAllowed = camStatus === 'granted';
-                }
+                  if (mediaTypes.includes('video')) {
+                    const camStatus =
+                      systemPreferences.getMediaAccessStatus('camera');
+                    cameraAllowed = camStatus === 'granted';
+                  }
 
-                const allowed = microphoneAllowed && cameraAllowed;
+                  const allowed = microphoneAllowed && cameraAllowed;
 
-                if (!allowed) {
-                  console.log('Media permissions denied by system:', {
-                    microphone: microphoneAllowed,
-                    camera: cameraAllowed,
-                    requestedTypes: mediaTypes,
-                  });
+                  if (!allowed) {
+                    console.log('Media permissions denied by system:', {
+                      microphone: microphoneAllowed,
+                      camera: cameraAllowed,
+                      requestedTypes: mediaTypes,
+                    });
 
-                  if (process.platform === 'win32') {
                     let permissionType: 'microphone' | 'camera' | 'both';
                     if (
                       mediaTypes.includes('audio') &&
@@ -239,9 +322,13 @@ export const startVideoCallWindowHandler = (): void => {
                       }
                     });
                   }
+
+                  callback(allowed);
+                  break;
                 }
 
-                callback(allowed);
+                // For Linux and other platforms, always allow media access
+                callback(true);
                 break;
               }
 
@@ -252,6 +339,13 @@ export const startVideoCallWindowHandler = (): void => {
               case 'fullscreen':
                 callback(true);
                 return;
+
+              case 'openExternal': {
+                // Allow external protocol handling for video call windows
+                // This is essential for Zoom, Teams, and other external app launches
+                callback(true);
+                return;
+              }
 
               default:
                 callback(false);
