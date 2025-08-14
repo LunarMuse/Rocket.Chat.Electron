@@ -238,11 +238,13 @@
       },
       "menubar": {
         "title": "Menylinje",
-        "description": "Vis menylinjen øverst i vinduet."
+        "description": "Vis menylinjen øverst i vinduet.",
+        "disabledHint": "Kan ikke deaktivere menylinjen når sidefeltet er deaktivert. Innstillinger ville bli utilgjengelige."
       },
       "sidebar": {
         "title": "Sidefelt",
-        "description": "Vis sidefeltet til venstre i vinduet med serverlisten, nedlastinger og innstillinger."
+        "description": "Vis sidefeltet til venstre i vinduet med serverlisten, nedlastinger og innstillinger.",
+        "disabledHint": "Kan ikke deaktivere sidefeltet når menylinjen er deaktivert. Innstillinger ville bli utilgjengelige."
       },
       "trayIcon": {
         "title": "Systemstatusikon",
@@ -339,6 +341,21 @@
     "announcement": "Houston, vi har et problem",
     "reload": "Last inn på nytt"
   },
+  "videoCall": {
+    "loading": {
+      "initial": "Laster videosamtale...",
+      "reloading": "Laster videosamtale på nytt...",
+      "description": "Vennligst vent mens vi kobler til videosamtalen"
+    },
+    "error": {
+      "title": "Kunne ikke laste videosamtale",
+      "announcement": "Houston, vi har et problem",
+      "timeout": "Tidsavbrudd - videosamtalen kunne ikke lastes innen 15 sekunder",
+      "crashed": "Webview krasjet",
+      "maxRetriesReached": "Kunne ikke laste etter flere forsøk",
+      "reload": "Last videosamtale på nytt"
+    }
+  },
   "unsupportedServer": {
     "title": "{{instanceDomain}} kjører en versjon av Rocket.Chat som ikke støttes",
     "announcement": "En administrator må oppdatere serveren til en støttet versjon for å gjenaktivere tilgang fra mobil- og skrivebordsapper.",
@@ -412,20 +429,5 @@
     "noWindowsFound": "Ingen vinduer funnet",
     "cancel": "Kansellere",
     "share": "Dele"
-  },
-  "videoCall": {
-    "loading": {
-      "initial": "Laster videosamtale...",
-      "reloading": "Laster videosamtale på nytt...",
-      "description": "Vennligst vent mens vi kobler til videosamtalen"
-    },
-    "error": {
-      "title": "Kunne ikke laste videosamtale",
-      "announcement": "Houston, vi har et problem",
-      "timeout": "Tidsavbrudd - videosamtalen kunne ikke lastes innen 15 sekunder",
-      "crashed": "Webview krasjet",
-      "maxRetriesReached": "Kunne ikke laste etter flere forsøk",
-      "reload": "Last videosamtale på nytt"
-    }
   }
 }
